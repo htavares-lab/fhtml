@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fatura do cartão – Mock (Scroll por aba)</title>
+<style>
+  :root{
+    --blue:#2e6dd6; --blue2:#1f57b3; --bg:#f2f5fb; --card:#fff;
+    --text:#0f172a; --muted:#94a3b8; --divider:#e5e7eb; --ok:#12b886;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    display:flex;justify-content:center
+  }
+  .phone{width:min(420px,100%);min-height:100dvh;background:linear-gradient(180deg,var(--blue),var(--blue2))}
+  .top{display:flex;align-items:center;justify-content:space-between;color:#fff;padding:16px 18px 8px;font-weight:700}
+  .tabs{display:flex;gap:8px;padding:0 18px 16px;overflow:auto}
+  .tab{border:0;background:transparent;color:#cfe0ff;padding:6px 10px;border-radius:14px;font-weight:700;white-space:nowrap;cursor:pointer}
+  .tab.active{background:#ffffff22;color:#fff}
+  .header{color:#fff;padding:0 18px 16px}
+  .pill{display:inline-flex;gap:6px;align-items:center;background:#eafaf3;color:#0f5132;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}
+  .sheet{background:var(--bg);border-radius:18px 18px 0 0;padding:14px 14px 16px}
+  .card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  .row{display:flex;align-items:center;justify-content:space-between}
+  .amount{font-size:28px;font-weight:800;margin-top:10px}
+  .btn{border:2px solid #e8f0ff;background:#fff;color:#1f57b3;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer}
+  .title{margin:14px 2px 8px;font-weight:800}
+  .search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e7ecf7;border-radius:12px;padding:10px 12px}
+  .search input{border:0;outline:0;width:100%}
+  /* WRAPPER COM ALTURA FIXA E ROLAGEM POR ABA */
+  .list-wrap{
+    margin-top:10px;background:#fff;border:1px solid #eef2f7;border-radius:14px;
+    overflow-y:auto; max-height:60dvh;
+  }
+  .list{overflow:visible}
+  .item{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--divider)}
+  .item:last-child{border-bottom:0}
+  .date{text-align:center;font-weight:700;color:#334155}
+  .date small{display:block;color:var(--muted);font-weight:600}
+  .desc{display:flex;flex-direction:column;gap:2px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#9aa6b2;display:inline-block;margin-right:6px}
+  .subtitle{font-size:12px;color:#94a3b8}
+  .value{font-weight:800}
+  .chev{color:#c0c6d4;margin-left:10px}
+  .hint{padding:10px 14px;color:#64748b;font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="top">
+    <div>‹</div><div>Fatura do cartão</div><div style="width:16px"></div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+
+  <div class="header">
+    <div style="background:#ffffff1a;display:inline-flex;gap:8px;padding:6px 10px;border-radius:10px;">
+      Henrique L Tavares • **** 9249
+    </div>
+  </div>
+
+  <div class="sheet">
+    <div class="card">
+      <div class="row">
+        <span class="pill">✔︎ Fatura paga</span>
+        <button class="btn" id="btnPdf">Ver em PDF</button>
+      </div>
+      <div class="amount" id="amount">R$ —</div>
+    </div>
+
+    <div class="title">Lançamentos</div>
+    <div class="search">🔎
+      <input id="search" placeholder="Busque por nome ou valor">
+    </div>
+
+    <!-- LISTA COM ROLAGEM -->
+    <div class="list-wrap" id="listWrap">
+      <div class="list" id="list"></div>
+      <div class="hint" id="hint">Role para ver mais…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ------- DADOS BASE -------
+  const BASE = {
+    "Mai":[
+      {date:"29 Mai", title:"SUPERMERCADO BOM PREÇO", value:189.90},
+      {date:"27 Mai", title:"UBER *TRIP", value:21.50},
+      {date:"26 Mai", title:"APPLE.COM/BILL", value:19.90},
+    ],
+    "Jun":[
+      {date:"27 Jun", title:"SEU BATISTA CHOPP E LA", value:105.30},
+      {date:"26 Jun", title:"EBN*SONYPLAYSTATN", value:13.97, note:"Parcela 1 de 4"},
+      {date:"25 Jun", title:"CONFIANÇA AQUARIUS", value:98.61},
+      {date:"23 Jun", title:"APPLE.COM/BILL", value:19.90},
+      {date:"22 Jun", title:"AUTO POSTO EXPRESS", value:100.00},
+    ],
+    "Jul":[
+      {date:"03 Jul", title:"AMAZON BR", value:79.90},
+      {date:"02 Jul", title:"SPOTIFY", value:34.90},
+      {date:"01 Jul", title:"NETFLIX", value:39.90},
+      {date:"01 Jul", title:"PADARIA AROMA", value:23.50},
+      {date:"01 Jul", title:"ACADEMIA MOVE", value:119.90},
+    ],
+    "Ago":[
+      {date:"15 Ago", title:"APPLE.COM/BILL", value:19.90},
+      {date:"13 Ago", title:"CONFIANÇA AQUARIUS", value:88.10},
+      {date:"12 Ago", title:"PAG*SONYPLAYSTATN", value:13.97, note:"Parcela 2 de 4"},
+    ],
+    "Set":[
+      {date:"10 Set", title:"MERCADO LIVRE", value:249.00},
+      {date:"07 Set", title:"UBER EATS", value:32.40},
+      {date:"05 Set", title:"POSTO SHELL", value:190.00},
+    ],
+    "Out":[
+      {date:"14 Out", title:"AMERICANAS LOJA", value:129.90},
+      {date:"12 Out", title:"IFOOD *PAGAMENTO", value:42.50},
+      {date:"11 Out", title:"APPLE.COM/BILL", value:19.90},
+      {date:"09 Out", title:"ESTACIONAMENTO CENTRO", value:12.00},
+      {date:"08 Out", title:"FARMÁCIA SAÚDE", value:58.61}
+    ],
+    "Nov":[
+      {date:"03 Nov", title:"AMAZON BR", value:89.90},
+      {date:"02 Nov", title:"SPOTIFY", value:34.90},
+      {date:"01 Nov", title:"NETFLIX", value:39.90},
+      {date:"01 Nov", title:"POSTO SHELL", value:210.00},
+      {date:"01 Nov", title:"PADARIA AROMA", value:28.40}
+    ]
+  };
+
+  // Clona muitos itens para cada mês para simular "várias faturas/lançamentos"
+  function inflateMonth(list, repeat=50){
+    const out = [];
+    for(let r=0;r<repeat;r++){
+      list.forEach((i, idx)=>{
+        // muda a data só pra variar
+        const [dia, mes] = i.date.split(" ");
+        const nDia = String(Math.max(1, (parseInt(dia)||1) - (r%28))).padStart(2,"0");
+        out.push({
+          date: `${nDia} ${mes}`,
+          title: i.title + (repeat>1? ` #${r+1}`:""),
+          value: i.value + ((idx+r)%3===0? 0.10:0), // micro variação
+          note: i.note
+        });
+      });
+    }
+    return out;
+  }
+
+  const DATA = {
+    "Mai": inflateMonth(BASE["Mai"], 40),
+    "Jun": inflateMonth(BASE["Jun"], 60),
+    "Jul": inflateMonth(BASE["Jul"], 80),
+    "Ago": inflateMonth(BASE["Ago"], 30),
+    "Set": inflateMonth(BASE["Set"], 50),
+    "Out": inflateMonth(BASE["Out"], 60),
+    "Nov": inflateMonth(BASE["Nov"], 70),
+  };
+
+  // ordem das abas (inclui Out e Nov)
+  const MONTHS = ["Mai","Jun","Jul","Ago","Set","Out","Nov"];
+  let current = "Nov"; // começa em novembro
+
+  // Estado por aba: quantidade visível e posição do scroll
+  const state = MONTHS.reduce((acc,m)=> (acc[m]={visible:30, scroll:0}, acc), {}); // 30 itens iniciais
+  const PAGE = 30; // carrega mais 30 por vez
+
+  const $ = (id)=>document.getElementById(id);
+  const tabsEl = $("tabs"), listEl = $("list"), amountEl = $("amount"), searchEl = $("search"), listWrap = $("listWrap"), hintEl = $("hint");
+
+  const money = (v)=> v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+
+  function renderTabs(){
+    tabsEl.innerHTML = "";
+    MONTHS.forEach(m=>{
+      const b = document.createElement("button");
+      b.className = "tab"+(m===current?" active":"");
+      b.textContent = m;
+      b.onclick = ()=>{
+        // salva posição da aba atual
+        state[current].scroll = listWrap.scrollTop;
+        // troca de aba
+        current = m;
+        searchEl.value = "";
+        render(true); // true => restaura scroll
+      };
+      tabsEl.appendChild(b);
+    });
+  }
+
+  function computeTotal(items){ return items.reduce((s,i)=>s+i.value,0); }
+
+  function render(restoreScroll=false){
+    renderTabs();
+    const itemsAll = DATA[current] || [];
+    const q = searchEl.value.trim().toLowerCase();
+
+    // Se tem filtro, ignora paginação e mostra tudo o que bate
+    const filtered = q
+      ? itemsAll.filter(i => i.title.toLowerCase().includes(q) || money(i.value).includes(q) || i.date.toLowerCase().includes(q))
+      : itemsAll.slice(0, state[current].visible);
+
+    // total (do mês todo se não tem filtro; senão, do result filtrado)
+    const total = q ? computeTotal(filtered) : computeTotal(itemsAll);
+    amountEl.textContent = money(total);
+
+    // lista
+    listEl.innerHTML = "";
+    filtered.forEach(i=>{
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = `
+        <div class="date">${i.date}<small>${current}</small></div>
+        <div class="desc">
+          <div><span class="dot"></span>${i.title}</div>
+          ${i.note? `<div class="subtitle">${i.note}</div>`:""}
+        </div>
+        <div style="display:flex;align-items:center;">
+          <div class="value">${money(i.value)}</div>
+          <span class="chev">›</span>
+        </div>`;
+      listEl.appendChild(row);
+    });
+
+    if(filtered.length===0){
+      const empty = document.createElement("div");
+      empty.className = "item";
+      empty.innerHTML = `<div></div><div class="subtitle">Nenhum lançamento encontrado.</div><div></div>`;
+      listEl.appendChild(empty);
+      hintEl.textContent = "";
+    }else{
+      // dica de rolagem / fim da lista
+      if(q){
+        hintEl.textContent = "Resultados filtrados.";
+      }else if(state[current].visible < itemsAll.length){
+        hintEl.textContent = "Role para ver mais…";
+      }else{
+        hintEl.textContent = "Fim da lista.";
+      }
+    }
+
+    // restaura posição de rolagem da aba
+    if(restoreScroll){
+      listWrap.scrollTop = state[current].scroll || 0;
+    }
+  }
+
+  // Carregamento incremental ao rolar
+  listWrap.addEventListener("scroll", ()=>{
+    const q = searchEl.value.trim();
+    if(q) return; // sem paginação quando filtrando
+    const itemsAll = DATA[current] || [];
+    if(state[current].visible >= itemsAll.length) return;
+
+    // quando chega perto do fim, carregue mais
+    const nearBottom = listWrap.scrollTop + listWrap.clientHeight >= listWrap.scrollHeight - 40;
+    if(nearBottom){
+      state[current].visible = Math.min(itemsAll.length, state[current].visible + PAGE);
+      const prevScroll = listWrap.scrollTop;
+      render();         // re-render
+      listWrap.scrollTop = prevScroll; // mantém posição estável
+    }
+  });
+
+  searchEl.addEventListener("input", ()=> render());
+
+  $("btnPdf").onclick = ()=> alert("Aqui acionaria o download/visualização do PDF.");
+
+  // Inicializa
+  render(true);
+</script>
+</body>
+</html>
