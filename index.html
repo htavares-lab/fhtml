@@ -15,19 +15,22 @@
     --text:#0f172a; --muted:#94a3b8; --divider:#e5e7eb; --ok:#12b886;
   }
   *{box-sizing:border-box}
+  html, body { overflow-x: hidden; } /* trava a rolagem lateral */
   body{
     margin:0;background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-    display:flex;justify-content:center
+    display:flex;justify-content:center;
+    touch-action: pan-y; /* apenas rolagem vertical */
   }
-  .phone{width:min(420px,100%);min-height:100dvh;background:linear-gradient(180deg,var(--blue),var(--blue2))}
+  .phone{width:min(420px,100%);min-height:100dvh;background:linear-gradient(180deg,var(--blue),var(--blue2));
+    overflow-x:hidden;}
   .top{display:flex;align-items:center;justify-content:space-between;color:#fff;padding:16px 18px 8px;font-weight:700}
   .tabs{display:flex;gap:8px;padding:0 18px 16px;overflow:auto}
   .tab{border:0;background:transparent;color:#cfe0ff;padding:6px 10px;border-radius:14px;font-weight:700;white-space:nowrap;cursor:pointer}
   .tab.active{background:#ffffff22;color:#fff}
   .header{color:#fff;padding:0 18px 16px}
   .pill{display:inline-flex;gap:6px;align-items:center;background:#eafaf3;color:#0f5132;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}
-  .sheet{background:var(--bg);border-radius:18px 18px 0 0;padding:14px 14px 16px}
+  .sheet{background:var(--bg);border-radius:18px 18px 0 0;padding:14px 14px 16px;overflow-x:hidden;}
   .card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
   .row{display:flex;align-items:center;justify-content:space-between}
   .amount{font-size:28px;font-weight:800;margin-top:10px}
@@ -35,17 +38,19 @@
   .title{margin:14px 2px 8px;font-weight:800}
   .search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e7ecf7;border-radius:12px;padding:10px 12px}
   .search input{border:0;outline:0;width:100%}
-  /* WRAPPER COM ALTURA FIXA E ROLAGEM POR ABA */
   .list-wrap{
     margin-top:10px;background:#fff;border:1px solid #eef2f7;border-radius:14px;
-    overflow-y:auto; max-height:60dvh;
+    overflow-y:auto; overflow-x:hidden; max-height:60dvh;
+    -webkit-overflow-scrolling:touch;
+    touch-action: pan-y;
+    overscroll-behavior-x: contain;
   }
-  .list{overflow:visible}
-  .item{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--divider)}
+  .list{overflow:visible;max-width:100%;}
+  .item{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--divider);word-break:break-word;}
   .item:last-child{border-bottom:0}
   .date{text-align:center;font-weight:700;color:#334155}
   .date small{display:block;color:var(--muted);font-weight:600}
-  .desc{display:flex;flex-direction:column;gap:2px}
+  .desc{display:flex;flex-direction:column;gap:2px;word-break:break-word;}
   .dot{width:8px;height:8px;border-radius:50%;background:#9aa6b2;display:inline-block;margin-right:6px}
   .subtitle{font-size:12px;color:#94a3b8}
   .value{font-weight:800}
@@ -69,7 +74,7 @@
   <div class="sheet">
     <div class="card">
       <div class="row">
-        <span class="pill">✔︎ Fatura paga</span>
+        <span class="pill" id="statusFatura">✔︎ Fatura paga</span>
         <button class="btn" id="btnPdf">Ver em PDF</button>
       </div>
       <div class="amount" id="amount">R$ —</div>
@@ -80,7 +85,6 @@
       <input id="search" placeholder="Busque por nome ou valor">
     </div>
 
-    <!-- LISTA COM ROLAGEM -->
     <div class="list-wrap" id="listWrap">
       <div class="list" id="list"></div>
       <div class="hint" id="hint">Role para ver mais…</div>
@@ -89,7 +93,6 @@
 </div>
 
 <script>
-  // ------- DADOS BASE -------
   const BASE = {
     "Mai": [
   {date:"30 Mai", title:"SUPERMERCADO BOM PREÇO", value:182.45},
@@ -135,7 +138,7 @@
 ],
     "Jul":[
       {date:"27 Jun", title:"SEU BATSITA CHOPP E LA", value:105.30},
-      {date:"26 Jun", title:"EBN*SONYPLAYSTATN", value:13.90},
+      {date:"26 Jun", title:"EBN*SONYPLAYSTA", value:13.90},
       {date:"25 Jun", title:"CONFIANCA AQUARIUS", value:98.61},
       {date:"23 Jun", title:"AUTO POSTO EXPRESS", value:100.00},
       {date:"18 Jun", title:"CAFE DO FEIRANTE", value:48.97},
@@ -146,7 +149,7 @@
       {date:"12 Jun", title:"PAYGO*L B FOOD LTDA", value:365.97},
       {date:"12 Jun", title:"TANGARA ACABAMENTOS P", value:314.37},
       {date:"11 Jun", title:"CENTAURO CE122", value:264.99, note:"Parcela 1 de 2"},
-      {date:"07 Jun", title:"ELEFANTINHOBAURUPOSTO", value:122.76},
+      {date:"07 Jun", title:"ELEFABAURUPOSTO", value:122.76},
       {date:"07 Jun", title:"UNESPBAURU", value:32.50},
       {date:"07 Jun", title:"UNESPBAURU", value:21.00},
       {date:"07 Jun", title:"AUTO POSTO EXPRESS", value:289.92},
@@ -186,13 +189,12 @@
     const out = [];
     for(let r=0;r<repeat;r++){
       list.forEach((i, idx)=>{
-        // muda a data só pra variar
         const [dia, mes] = i.date.split(" ");
         const nDia = String(Math.max(1, (parseInt(dia)||1) - (r%28))).padStart(2,"0");
         out.push({
           date: `${nDia} ${mes}`,
           title: i.title,
-          value: i.value + ((idx+r)%3===0? 0.10:0), // micro variação
+          value: i.value + ((idx+r)%3===0? 0.10:0),
           note: i.note
         });
       });
@@ -210,16 +212,16 @@
     "Nov": inflateMonth(BASE["Nov"], 10),
   };
 
-  // ordem das abas (inclui Out e Nov)
   const MONTHS = ["Mai","Jun","Jul","Ago","Set","Out","Nov"];
-  let current = "Nov"; // começa em novembro
+  let current = "Nov";
 
-  // Estado por aba: quantidade visível e posição do scroll
-  const state = MONTHS.reduce((acc,m)=> (acc[m]={visible:30, scroll:0}, acc), {}); // 30 itens iniciais
-  const PAGE = 30; // carrega mais 30 por vez
+  const state = MONTHS.reduce((acc,m)=> (acc[m]={visible:30, scroll:0}, acc), {});
+  const PAGE = 30;
 
   const $ = (id)=>document.getElementById(id);
-  const tabsEl = $("tabs"), listEl = $("list"), amountEl = $("amount"), searchEl = $("search"), listWrap = $("listWrap"), hintEl = $("hint");
+  const tabsEl = $("tabs"), listEl = $("list"), amountEl = $("amount"),
+        searchEl = $("search"), listWrap = $("listWrap"), hintEl = $("hint"),
+        statusFatura = $("statusFatura");
 
   const money = (v)=> v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 
@@ -230,12 +232,10 @@
       b.className = "tab"+(m===current?" active":"");
       b.textContent = m;
       b.onclick = ()=>{
-        // salva posição da aba atual
         state[current].scroll = listWrap.scrollTop;
-        // troca de aba
         current = m;
         searchEl.value = "";
-        render(true); // true => restaura scroll
+        render(true);
       };
       tabsEl.appendChild(b);
     });
@@ -245,19 +245,24 @@
 
   function render(restoreScroll=false){
     renderTabs();
+
+    // controla visibilidade do selo "Fatura paga"
+    if (current === "Out" || current === "Nov") {
+      statusFatura.style.display = "none";
+    } else {
+      statusFatura.style.display = "inline-flex";
+    }
+
     const itemsAll = DATA[current] || [];
     const q = searchEl.value.trim().toLowerCase();
 
-    // Se tem filtro, ignora paginação e mostra tudo o que bate
     const filtered = q
       ? itemsAll.filter(i => i.title.toLowerCase().includes(q) || money(i.value).includes(q) || i.date.toLowerCase().includes(q))
       : itemsAll.slice(0, state[current].visible);
 
-    // total (do mês todo se não tem filtro; senão, do result filtrado)
     const total = q ? computeTotal(filtered) : computeTotal(itemsAll);
     amountEl.textContent = money(total);
 
-    // lista
     listEl.innerHTML = "";
     filtered.forEach(i=>{
       const row = document.createElement("div");
@@ -282,7 +287,6 @@
       listEl.appendChild(empty);
       hintEl.textContent = "";
     }else{
-      // dica de rolagem / fim da lista
       if(q){
         hintEl.textContent = "Resultados filtrados.";
       }else if(state[current].visible < itemsAll.length){
@@ -292,35 +296,45 @@
       }
     }
 
-    // restaura posição de rolagem da aba
     if(restoreScroll){
       listWrap.scrollTop = state[current].scroll || 0;
     }
   }
 
-  // Carregamento incremental ao rolar
   listWrap.addEventListener("scroll", ()=>{
     const q = searchEl.value.trim();
-    if(q) return; // sem paginação quando filtrando
+    if(q) return;
     const itemsAll = DATA[current] || [];
     if(state[current].visible >= itemsAll.length) return;
-
-    // quando chega perto do fim, carregue mais
     const nearBottom = listWrap.scrollTop + listWrap.clientHeight >= listWrap.scrollHeight - 40;
     if(nearBottom){
       state[current].visible = Math.min(itemsAll.length, state[current].visible + PAGE);
       const prevScroll = listWrap.scrollTop;
-      render();         // re-render
-      listWrap.scrollTop = prevScroll; // mantém posição estável
+      render();
+      listWrap.scrollTop = prevScroll;
     }
   });
 
   searchEl.addEventListener("input", ()=> render());
-
   $("btnPdf").onclick = ()=> alert("Sistema fora do ar, tente novamente em alguns instantes.");
-
-  // Inicializa
   render(true);
+
+  // 🔒 trava arrasto lateral no iOS/Android (fallback)
+  (function lockAxis(){
+    const el = document.getElementById('listWrap');
+    if (!el) return;
+    let startX = 0, startY = 0;
+    el.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      startX = t.clientX; startY = t.clientY;
+    }, { passive: true });
+    el.addEventListener('touchmove', (e) => {
+      const t = e.touches[0];
+      const dx = Math.abs(t.clientX - startX);
+      const dy = Math.abs(t.clientY - startY);
+      if (dx > dy) e.preventDefault(); // bloqueia gesto horizontal
+    }, { passive: false });
+  })();
 </script>
 </body>
 </html>
